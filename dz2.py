@@ -1,6 +1,16 @@
 from requests import get
 
-class InfoResponse():
+class ResponseRefreshable():
+	"""docstring for ResponseRefreshable"""
+	def __init__(self, methodurl):
+		response = get(methodurl)
+		self.status = "successfully got info" if response.ok else "can't get data"
+		self.response = response.json()
+
+	def refresh_data(self):
+		self.__init__()
+		
+class InfoResponse(ResponseRefreshable):
 	'''
 	decimal_places: количество разрешенных знаков после запятой
 	min_price: минимальная разрешенная цена
@@ -10,17 +20,12 @@ class InfoResponse():
 	fee: комиссия пары
 	'''
 	def __init__(self):
-		response = get("https://yobit.net/api/3/info")
-		self.status = "successfully got info" if response.ok else "can't get data"
-		response = response.json()
-		self.server_time = response["server_time"]
-		self.pairs = response["pairs"]
+		super().__init__("https://yobit.net/api/3/info")
+		self.server_time = self.response["server_time"]
+		self.pairs = self.response["pairs"]
 		self.btc_list = self.pairs.keys()
-		
-	def refresh_data(self):
-		self.__init__()
 
-class TickerResponse():
+class TickerResponse(ResponseRefreshable):
 	'''
 	high: макcимальная цена
 	low: минимальная цена
@@ -32,31 +37,21 @@ class TickerResponse():
 	sell: цена продажи
 	updated: последнее обновление кэша
 	'''
-
 	def __init__(self, btc):
-		response = get(f"https://yobit.net/api/3/ticker/{btc}")
-		self.status = "successfully got info" if response.ok else "can't get data"
-		response = response.json()
-		self.btc_info = response[btc]
+		super().__init__(f"https://yobit.net/api/3/ticker/{btc}")
+		self.btc_info = self.response[btc]
 
-	def refresh_data(self):
-		self.__init__()
 
-class DepthResponse():
+class DepthResponse(ResponseRefreshable):
 	'''
 	asks: ордера на продажу
 	bids: ордера на покупку
 	'''
 	def __init__(self, btc):
-		response = get(f"https://yobit.net/api/3/depth/{btc}")
-		self.status = "successfully got info" if response.ok else "can't get data"
-		response = response.json()
-		self.depth_btc_info = response[btc]
+		super().__init__(f"https://yobit.net/api/3/depth/{btc}")
+		self.depth_btc_info = self.response[btc]
 
-	def refresh_data(self):
-		self.__init__()
-
-class TradesResponse():
+class TradesResponse(ResponseRefreshable):
 	'''
 	type: ask - продажа, bid - покупка
 	price: цена покупки/продажи
@@ -65,20 +60,43 @@ class TradesResponse():
 	timestamp: unix time сделки
 	'''
 	def __init__(self, btc):
-		response = get(f"https://yobit.net/api/3/trades/{btc}")
-		self.status = "successfully got info" if response.ok else "can't get data"
-		response = response.json()
-		self.trades_btc_info = response[btc]
-
-	def refresh_data(self):
-		self.__init__()
+		super().__init__(f"https://yobit.net/api/3/trades/{btc}")
+		self.trades_btc_info = self.response[btc]
 
 
-ir = InfoResponse()
-print(ir.status, ir.server_time, ir.pairs, ir.btc_list)
-tr = TickerResponse("ltc_btc")
-print(tr.status, tr.btc_info)
-dr = DepthResponse("ltc_btc")
-print(dr.status, dr.depth_btc_info)
-tdr = TradesResponse("ltc_btc")
-print(tdr.status, tdr.trades_btc_info)
+def YobitApiFabric(method, btc="type btc to check (if neccessary)"):
+		if btc=="type btc to check (if neccessary)":
+			has_btc = False
+		else:
+			has_btc = True
+
+		if method == "info":
+			return InfoResponse()
+
+		if has_btc:
+			if method == "ticker":
+				return TickerResponse(btc)
+			if method == "depth":
+				return DepthResponse(btc)
+			if method == "trades":
+				return TradesResponse(btc)
+		else:
+			raise Exception("please, provide btc currency")
+
+		raise Exception("unknown method")
+
+# infoobj = YobitApiFabric("info")
+# print(infoobj.__doc__)
+# print(infoobj.server_time, infoobj.pairs, infoobj.btc_list)
+
+# tickerobj = YobitApiFabric("ticker", "ltc_btc")
+# print(tickerobj.__doc__)
+# print(tickerobj.btc_info)
+
+# depthobj = YobitApiFabric("depth", "ltc_btc")
+# print(depthobj.__doc__)
+# print(depthobj.depth_btc_info)
+
+# tradesobj = YobitApiFabric("trades", "ltc_btc")
+# print(tradesobj.__doc__)
+# print(tradesobj.trades_btc_info)
